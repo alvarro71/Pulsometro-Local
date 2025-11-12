@@ -1,0 +1,1 @@
+{"glowIntensity":"66","glowColor":"#00ff00","borderColor":"#00ff00","soloNumero":"true"}

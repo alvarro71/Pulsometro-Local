@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlay Pulsómetro</title>
+  <style>
+    @font-face {
+      font-family: 'Righteous';
+      src: url('fonts/Righteous-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    body {
+      background: transparent;
+      color: #fff;
+      font-family: 'Righteous', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+  
+    .pulsometro {
+      position: absolute;
+      right: 120px; /* En la esquina derecha */
+      top: 20px;   /* En la parte superior */
+      transform: translateY(0); /* Sin desplazamiento vertical */
+      font-size: 4em;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+      transition: all 0.3s ease;
+      z-index: 1000; /* Asegurarse de que esté por encima de otros elementos */
+    }
+  
+    .battery {
+      position: absolute;
+      left: 20px; /* En la esquina izquierda */
+      bottom: 20px; /* En la parte inferior */
+      font-size: 1.5em;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    }
+
+    .solo-numero {
+      position: absolute;
+      top: 300px;
+      right: 120px;
+      font-size: 4em;
+      background: none !important;
+      text-shadow: 0 0 50px #00ff00;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      z-index: 999;
+      color: #0f0;
+    }
+
+    /* Animaciones de temblor ajustadas */
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      50% { transform: translateX(2px); }
+      75% { transform: translateX(-2px); }
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes shake2 {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes shake3 {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      50% { transform: translateX(10px); }
+      75% { transform: translateX(-10px); }
+      100% { transform: translateX(0); }
+    }
+
+    .temblor1 {
+      animation: shake 0.2s infinite alternate;
+    }
+
+    .temblor2 {
+      animation: shake2 0.3s infinite alternate;
+    }
+
+    .temblor3 {
+      animation: shake3 0.4s infinite alternate;
+    }
+
+    @keyframes fadePulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.2; }
+      100% { opacity: 1; }
+    }
+
+    .parpadeo-peligro {
+      animation: fadePulse 0.2s infinite ease-in-out;
+    }
+
+  </style>  
+</head>
+<body>
+  <div class="pulsometro" id="pulsometro">0</div>
+  <div class="battery" id="battery">Batería: 100%</div>
+  <div class="pulsometro solo-numero" id="pulsometroSoloNumero">0</div>
+  <img id="corazon" src="Corazon.png" alt="Corazón" class = "corazonazo" style="position: absolute; top: 600px; right: 120px; width: 100px; transition: transform 0.1s ease;">
+  <canvas id="bpmChart" style="position: absolute; bottom: 20px; right: 20px; width: 400px; height: 150px; background-color: rgba(0,0,0,0.6); border-radius: 10px; box-shadow: 0 0 10px #00ff00;"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Obtener configuraciones guardadas
+    const glowIntensity = localStorage.getItem('glowIntensity') || 50; // Por defecto 50
+    const glowColor = localStorage.getItem('glowColor') || '#00ff00'; // Por defecto verde
+    const borderColor = localStorage.getItem('borderColor') || '#00ff00'; // Por defecto verde
+    const soloNumero = localStorage.getItem('soloNumero') === 'true'; // Si está activado
+  
+    // Elementos de la interfaz
+    const pulsometro = document.getElementById('pulsometro');
+    const pulsometroSoloNumero = document.getElementById('pulsometroSoloNumero');
+    const batteryDisplay = document.getElementById('battery');
+    const corazon = document.getElementById('corazon');
+  
+    // Variables para almacenar los últimos valores
+    let lastBpm = null;
+    let lastBattery = null;
+
+    // Aplicar configuración de glow y borde
+    function aplicarConfiguraciones() {
+      pulsometro.style.textShadow = `0 0 ${glowIntensity}px ${glowColor}`;
+      pulsometro.style.border = `2px solid ${borderColor}`;
+      pulsometro.style.background = soloNumero ? 'none' : 'rgba(0, 0, 0, 0.7)'; // Si "Solo Número" está activado, sin fondo
+    }
+  
+    // Función para obtener los datos
+    async function obtenerDatos() {
+      try {
+        const response = await fetch('guardar.php', { method: 'GET' });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          const bpm = data.bpm ? data.bpm : 'Esperando...';
+          const battery = data.battery ? data.battery : 'Esperando...';
+
+          // Solo actualizar el BPM si cambia
+          if (bpm !== lastBpm) {
+          lastBpm = bpm;
+          pulsometro.innerText = bpm !== 'Esperando...' ? `${bpm}` : 'BPM: Esperando...';
+          pulsometroSoloNumero.innerText = bpm !== 'Esperando...' ? `${bpm}` : '';
+          }
+
+          // Solo actualizar la batería si cambia
+          if (battery !== lastBattery) {
+            lastBattery = battery;
+            batteryDisplay.innerText = battery !== 'Esperando...' ? `Batería: ${battery}%` : 'Batería: Esperando...';
+          }
+
+          // Dentro de obtenerDatos(), después de comºprobar que bpm !== 'Esperando...'
+          const bpmNum = parseInt(bpm);
+
+          if (!isNaN(bpmNum)) {
+            if (bpmData.length >= 100) {
+              bpmData.shift();
+              bpmChart.data.labels.shift();
+              bpmColors.shift();
+            }
+
+            bpmData.push(bpmNum);
+            bpmChart.data.labels.push('');
+            
+            // Añadir color por BPM
+            let color = '#00ff00';
+            if (bpmNum >= 200) color = '#ff0000';
+            else if (bpmNum >= 180) color = '#ff3300';
+            else if (bpmNum >= 130) color = '#ff6600';
+            else if (bpmNum >= 110) color = '#ffcc00';
+
+            bpmColors.push(color);
+            bpmChart.data.datasets[0].borderColor = bpmColors;
+            bpmChart.update();
+          }
+
+          if (!isNaN(bpmNum)) {
+            const interval = 70000 / bpmNum; // milisegundos entre latidos
+            corazon.style.transition = `transform 0.05s ease`;
+            corazon.style.transform = `scale(1.2)`;
+            setTimeout(() => {
+              corazon.style.transform = `scale(1)`;
+            }, interval / 2);
+          }
+
+          pulsometro.classList.remove('temblor1', 'temblor2', 'temblor3');
+          pulsometroSoloNumero.classList.remove('temblor1', 'temblor2', 'temblor3');
+
+          // Aplicar las clases de temblor en función del BPM
+          // Aplica temblores y colores SOLO en esta sección
+          if (bpm >= 200) {
+            pulsometro.style.color = '#f00';
+            pulsometro.classList.add('temblor3');
+            pulsometroSoloNumero.style.color = '#f00';
+            pulsometroSoloNumero.classList.add('temblor3');
+          } else if (bpm >= 180) {
+            pulsometro.style.color = '#ff3300';
+            pulsometro.classList.add('temblor2');
+            pulsometroSoloNumero.style.color = '#ff3300';
+            pulsometroSoloNumero.classList.add('temblor2');
+          } else if (bpm >= 130) {
+            pulsometro.style.color = '#ff6600';
+            pulsometro.classList.add('temblor2');
+            pulsometroSoloNumero.style.color = '#ff6600';
+            pulsometroSoloNumero.classList.add('temblor2');
+          } else if (bpm >= 110) {
+            pulsometro.style.color = '#ffcc00';
+            pulsometro.classList.add('temblor1');
+            pulsometroSoloNumero.style.color = '#ffcc00';
+            pulsometroSoloNumero.classList.add('temblor1');
+          } else {
+            pulsometro.style.color = '#0f0';
+            pulsometroSoloNumero.style.color = '#0f0';
+          }
+
+          if (bpmNum >= 170) {
+            corazon.classList.add('parpadeo-peligro');
+            const velocidad = Math.max(0.1, 0.1 - (bpmNum - 115) * 0.01); // Parpadeo más rápido cuanto más alto el BPM
+              // Cambiar color a blanco
+            corazon.style.filter = 'brightness(500%)'; // Hacemos el corazón más brillante
+            // Hacer que parpadee en blanco
+            corazon.style.animation = `fadePulse ${velocidad}s infinite ease-in-out`;
+          } else {
+            corazon.classList.remove('parpadeo-peligro');
+            corazon.style.animation = '';
+            corazon.style.filter = 'none';
+          }
+        } else {
+          console.error('Error al obtener los datos:', data);
+        }
+      } catch (error) {
+        console.error('Error al obtener datos:', error);
+      }
+    }
+
+    // Llamar a la función para obtener los datos cada 1 segundo
+    setInterval(obtenerDatos, 300);
+    // Función para cargar el archivo de configuración
+    async function cargarConfiguraciones() {
+      try {
+        const response = await fetch('config.txt');
+        const data = await response.text();
+        const configuraciones = JSON.parse(data);
+  
+        localStorage.setItem('glowIntensity', configuraciones.glowIntensity);
+        localStorage.setItem('glowColor', configuraciones.glowColor);
+        localStorage.setItem('borderColor', configuraciones.borderColor);
+        localStorage.setItem('soloNumero', configuraciones.soloNumero);
+  
+        aplicarConfiguraciones();
+      } catch (error) {
+        console.error('Error al cargar configuraciones:', error);
+      }
+    }
+  
+    // Aplicar configuración inicial y actualizar periódicamente
+    cargarConfiguraciones();
+    aplicarConfiguraciones();
+    setInterval(cargarConfiguraciones, 1000);
+    
+    window.onload = function() {
+      const glowInput = document.getElementById('glow');
+      if (glowInput) {
+        // Aquí sí estás en index.php
+        const glowIntensity = localStorage.getItem('glowIntensity') || 50;
+        const glowColor = localStorage.getItem('glowColor') || "#00ff00";
+        const borderColor = localStorage.getItem('borderColor') || "#00ff00";
+        const soloNumero = localStorage.getItem('soloNumero') === 'true';
+        const animacion = localStorage.getItem('animacion') === 'true';
+
+        glowInput.value = glowIntensity;
+        document.getElementById('glowColor').value = glowColor;
+        document.getElementById('borderColor').value = borderColor;
+        document.getElementById('soloNumero').checked = soloNumero;
+        document.getElementById('animacion').checked = animacion;
+      }
+
+    // Aplicar el estilo del glow
+    document.getElementById('bpm').style.textShadow = `0 0 ${glowIntensity}px ${glowColor}`;
+    document.getElementById('bpm').style.borderColor = borderColor;
+      if (animacion) {
+        // Desactivar animaciones si está marcada la opción
+        document.body.style.animation = 'none';
+      }
+    }
+
+    const ctx = document.getElementById('bpmChart').getContext('2d');
+    let bpmData = [];
+    let bpmColors = [];
+
+    const bpmChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [], // Tiempo o índices
+        datasets: [{
+          label: 'BPM',
+          data: bpmData,
+          backgroundColor: 'rgba(0,0,0,0)',
+          borderColor: bpmColors,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: false,
+        scales: {
+          x: {
+            display: false
+          },
+          y: {
+            min: 50,
+            max: 220,
+            ticks: { color: '#0f0' },
+            grid: { color: 'rgba(0,255,0,0.1)' }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+
+  </script>
+</body>
+</html>

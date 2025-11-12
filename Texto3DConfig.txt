@@ -1,0 +1,43 @@
+# Configuración del plugin
+# Activar o desactivar el plugin
+#    1          0
+
+texto3d_enabled=1
+
+# Valor máximo del pulsómetro
+# Por defecto:
+# max_pulsometer=170 
+
+max_pulsometer=170
+
+# Tamaño del texto 3D (characterSize) 
+# Por defecto: 
+# text_size=0,05
+
+text_size=0,05
+
+# Posición del texto 3D (x, y, z) 
+# Por defecto:
+# text_pos_x=0
+# text_pos_y=-1
+# text_pos_z=5
+
+text_pos_x=0
+text_pos_y=-1
+text_pos_z=5
+
+# Rotación del texto 3D (x, y, z) en grados 
+# Por defecto:
+# text_rot_x=45
+# text_rot_y=0
+# text_rot_z=0
+
+text_rot_x=45
+text_rot_y=0
+text_rot_z=0
+
+# Bpm local
+# Por defecto: 
+# bpm_path=C:\xampp\htdocs\pulsometroalvarro71\bpm.txt
+
+bpm_path=C:\xampp\htdocs\pulsometroalvarro71\bpm.txt

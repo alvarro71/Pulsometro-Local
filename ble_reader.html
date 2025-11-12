@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Monitor de Pulso (BLE)</title>
+  <style>
+    body { background: #111; color: #0f0; font-family: monospace; padding: 2em; }
+    button { font-size: 1.5em; margin: 1em 0; padding: 0.5em 1em; }
+  </style>
+</head>
+<body>
+  <h1>Conectar Pulsómetro</h1>
+  <button onclick="conectar()">Seleccionar Dispositivo</button>
+  <div id="estado">Esperando conexión...</div>
+  <div id="datos" style="margin-top:1em;"></div>
+
+  <script>
+    let bpmChar, batteryChar;
+
+    async function conectar() {
+      try {
+        const dispositivo = await navigator.bluetooth.requestDevice({
+          filters: [{ services: ['heart_rate'] }],
+          optionalServices: ['battery_service']
+        });
+
+        const servidor = await dispositivo.gatt.connect();
+        document.getElementById("estado").innerText = "Dispositivo conectado";
+
+        const servicioBPM = await servidor.getPrimaryService('heart_rate');
+        bpmChar = await servicioBPM.getCharacteristic('heart_rate_measurement');
+        bpmChar.startNotifications();
+        bpmChar.addEventListener('characteristicvaluechanged', manejarBPM);
+
+        const servicioBat = await servidor.getPrimaryService('battery_service');
+        batteryChar = await servicioBat.getCharacteristic('battery_level');
+
+        manejarBateria(); // primer chequeo inmediato
+        setInterval(manejarBateria, 5000); // luego cada 5s
+
+      } catch (err) {
+        document.getElementById("estado").innerText = "Error: " + err;
+      }
+    }
+
+    function manejarBPM(event) {
+      const valor = event.target.value;
+      const bpm = valor.getUint8(1);
+      document.getElementById("datos").innerText = `BPM: ${bpm}`;
+      enviarAlServidor(bpm);
+    }
+
+    async function manejarBateria() {
+      const val = await batteryChar.readValue();
+      const battery = val.getUint8(0);
+      const bpmActual = document.getElementById("datos").innerText.match(/\d+/);
+      document.getElementById("datos").innerText += ` | Batería: ${battery}%`;
+      if (bpmActual) enviarAlServidor(parseInt(bpmActual[0]), battery);
+    }
+
+    function enviarAlServidor(bpm, battery = null) {
+      fetch("guardar.php", {
+        method: "POST",
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `bpm=${bpm}&battery=${battery !== null ? battery : ''}`
+      });
+    }
+  </script>
+</body>
+</html>
