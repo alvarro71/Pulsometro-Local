@@ -17,7 +17,7 @@ Una web para mostrar las pulsaciones de tu pulsómetro a través de la red local
 2. Instala XAMPP y coloca la carpeta del proyecto dentro de `htdocs`.
 3. Abre XAMPP y arranca Apache.
 4. Accede a la web en tu navegador:
-   http://localhost/pulsometroalvarro71/src/index.html
+   http://localhost/pulsometroalvarro71
 
 ## Uso
 
